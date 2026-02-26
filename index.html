@@ -4,51 +4,121 @@
   <title>Ahmed & Noura 💖</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Pacifico&display=swap');
-    body{
-      margin:0;
-      font-family:'Arial', sans-serif;
-      height:100vh;
-      overflow:hidden;
-      display:flex;
-      flex-direction:column;
-      background: linear-gradient(135deg,#fce4ec,#ffe0f7,#f8bbd0);
-      animation: bgShift 20s infinite alternate;
-    }
-    @keyframes bgShift{
-      0%{background: linear-gradient(135deg,#fce4ec,#ffe0f7,#f8bbd0);}
-      50%{background: linear-gradient(135deg,#f8bbd0,#f48fb1,#f06292);}
-      100%{background: linear-gradient(135deg,#fce4ec,#ffe0f7,#f8bbd0);}
-    }
-    header{
-      text-align:center;
-      padding:20px;
-      font-size:32px;
-      font-family:'Pacifico', cursive;
-      color:#d81b60;
-      text-shadow: 2px 2px 6px #fff;
-      position:relative;
-      z-index:2;
-    }
-    #messages{
-      flex:1;
-      overflow-y:auto;
-      padding:15px;
-      display:flex;
-      flex-direction:column;
-      position:relative;
-      z-index:2;
-    }
-    .msg{
-      padding:10px 15px;
-      border-radius:20px;
-      margin:5px;
-      max-width:70%;
-      color:white;
-      display:inline-block;
-      position:relative;
-      font-size:15px;
-      box-shadow:0 2px 5px rgba(0,0,0,0.2);
-      word-wrap:break-word;
-    }
-    .Ahmed{background:#d81b60; align-self
+    body { margin:0; font-family:Arial; background:linear-gradient(135deg,#f8c8dc,#ffffff); display:flex; flex-direction:column; height:100vh; position:relative; }
+    header { text-align:center; padding:15px; font-size:22px; font-weight:bold; color:#c2185b; }
+    #messages { flex:1; overflow-y:auto; padding:10px; }
+    .msg { background:#f48fb1; color:white; padding:8px 12px; border-radius:15px; margin:5px 0; max-width:70%; word-break: break-word; }
+    .inputBox { display:flex; padding:10px; background:white; }
+    input, button, #fileInput { padding:10px; border-radius:20px; border:1px solid #ddd; }
+    button { margin-left:8px; border:none; background:#c2185b; color:white; border-radius:20px; }
+    #loveFooter { text-align:center; position:absolute; bottom:10px; width:100%; font-size:18px; color:#c2185b; font-weight:bold; }
+  </style>
+</head>
+<body>
+
+<script>
+// 🌟 Password حماية الصفحة
+const correctPassword = "بحبك";
+const input = prompt("ادخل كلمة السر عشان تدخل الصفحة:");
+if(input !== correctPassword){
+  document.body.innerHTML = "<h1 style='text-align:center; margin-top:50vh;'>ممنوع الدخول</h1>";
+  throw "Wrong password!";
+}
+</script>
+
+<header>Ahmed & Noura 💖</header>
+<div id="messages"></div>
+
+<div class="inputBox">
+  <input id="messageInput" placeholder="اكتب رسالة حب...">
+  <input type="file" id="fileInput">
+  <button onclick="sendMessage()">إرسال</button>
+  <button id="recordBtn">🎤 تسجيل صوت</button>
+</div>
+
+<div id="loveFooter">بحبك اووي يا نورا 💖</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getDatabase, ref, push, onChildAdded } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { getStorage, ref as sRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDhuXjM-H9bSymsU01sz27_5prXXTX7rYU",
+  authDomain: "ahmed-noura-love.firebaseapp.com",
+  databaseURL: "https://ahmed-noura-love-default-rtdb.firebaseio.com",
+  projectId: "ahmed-noura-love",
+  storageBucket: "ahmed-noura-love.firebasestorage.app",
+  messagingSenderId: "791080256640",
+  appId: "1:791080256640:web:91d6fcb85c2838a9619265"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+const storage = getStorage(app);
+
+const roomId = "ahmed-noura-private";
+const messagesRef = ref(db, "rooms/" + roomId);
+const messagesDiv = document.getElementById("messages");
+
+window.sendMessage = async function() {
+  const input = document.getElementById("messageInput");
+  const fileInput = document.getElementById("fileInput");
+  let content = input.value.trim();
+
+  // إرسال صورة
+  if(fileInput.files.length > 0){
+    const file = fileInput.files[0];
+    const storageRef = sRef(storage, `rooms/${roomId}/${Date.now()}_${file.name}`);
+    await uploadBytes(storageRef, file);
+    const url = await getDownloadURL(storageRef);
+    content = `<img src="${url}" style="max-width:200px; border-radius:10px;">`;
+    fileInput.value = "";
+  }
+
+  if(content !== ""){
+    push(messagesRef, { text: content });
+    input.value = "";
+  }
+}
+
+// استقبال الرسائل
+onChildAdded(messagesRef, (data)=>{
+  const msg = document.createElement("div");
+  msg.className="msg";
+  msg.innerHTML = data.val().text;
+  messagesDiv.appendChild(msg);
+  messagesDiv.scrollTop = messagesDiv.scrollHeight;
+});
+
+// 🌟 تسجيل صوت وإرساله
+let mediaRecorder;
+let audioChunks = [];
+const recordBtn = document.getElementById("recordBtn");
+
+recordBtn.onclick = async function() {
+  if(recordBtn.innerText === "🎤 تسجيل صوت"){
+    // بدأ التسجيل
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    mediaRecorder = new MediaRecorder(stream);
+    audioChunks = [];
+    mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+    mediaRecorder.onstop = async () => {
+      const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+      const storageRef = sRef(storage, `rooms/${roomId}/${Date.now()}_voice.webm`);
+      await uploadBytes(storageRef, audioBlob);
+      const url = await getDownloadURL(storageRef);
+      push(messagesRef, { text: `<audio controls src="${url}"></audio>` });
+    };
+    mediaRecorder.start();
+    recordBtn.innerText = "⏹️ إيقاف التسجيل";
+  } else {
+    // إيقاف التسجيل
+    mediaRecorder.stop();
+    recordBtn.innerText = "🎤 تسجيل صوت";
+  }
+}
+</script>
+
+</body>
+</html>
